@@ -20,9 +20,10 @@ public class MainController {
     @RequestMapping(value = "/api/like/LikeAdd", method = { RequestMethod.POST })
     public
     @ResponseBody
-    String addLike(@RequestBody Like item) {
+    Like addLike(@RequestBody Like item) {
         LOG.info("Add like.");
-        String ret = dao.addLike(item.getId());
+        dao.addLike(item.getId());
+        Like ret = dao.query(item.getId());
         return ret;
     }
 

@@ -47,7 +47,11 @@ public class LikeDAO {
     }
 
     public Like query(String id){
-        Like ret = null;
+        Like ret = new Like(
+            id,
+            0,
+            null
+            );
         try {
             Connection conn = PostgreSqlHelper.GetConnection();
             try (PreparedStatement selectStatement = conn.prepareStatement(
