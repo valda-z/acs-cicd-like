@@ -80,7 +80,7 @@ public class LikeDAO {
                 try {
                     Connection conn = PostgreSqlHelper.GetConnection();
                     try (PreparedStatement stmt = conn.prepareStatement(
-                            "UPDATE LikeItem SET Count=Count+1, Updated=? WHERE id=?"))
+                            "UPDATE LikeItem SET LikeCount=LikeCount+1, Updated=? WHERE id=?"))
                     {
                         stmt.setString(2, id);
                         stmt.setDate(1, new java.sql.Date(new java.util.Date().getTime()));
