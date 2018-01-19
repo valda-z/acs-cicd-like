@@ -73,7 +73,7 @@
                     }
                     dir('target'){
                         container(name: 'helm') {
-                            def overrides = "image.repository='"+params.acr+"/"+myimagename+"',image.tag=${env.BUILD_NUMBER},track=stable,branchName='"+params.gitbranch+"',branchSubdomain=''"
+                            def overrides = "imagePullSecrets='"+params.acr+"',image.repository='"+params.acr+"/"+myimagename+"',image.tag=${env.BUILD_NUMBER},track=stable,branchName='"+params.gitbranch+"',branchSubdomain=''"
                             def releaseName = params.releasename
                             def chart_dir = myimagename
                             
