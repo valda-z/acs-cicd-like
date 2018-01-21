@@ -58,15 +58,16 @@ public class LikeDAO {
                     "SELECT Id, LikeCount, Updated FROM LikeItem WHERE id=?"))
             {
                 selectStatement.setString(1, id);
-                ResultSet rs = selectStatement.executeQuery();
-                if(rs.next()) {
-                    ret = (new Like(
-                            rs.getString("Id"),
-                            rs.getInt("LikeCount"),
-                            rs.getDate("Updated")
-                            ));
+                try(ResultSet rs = selectStatement.executeQuery()){
+                    if(rs.next()) {
+                        ret = (new Like(
+                                rs.getString("Id"),
+                                rs.getInt("LikeCount"),
+                                rs.getDate("Updated")
+                                ));
+                    }
+                    rs.close();
                 }
-                rs.close();
             }finally {
                 conn.close();
             }
@@ -83,15 +84,16 @@ public class LikeDAO {
             try (PreparedStatement selectStatement = conn.prepareStatement(
                     "SELECT Id, LikeCount, Updated FROM LikeItem"))
             {
-                ResultSet rs = selectStatement.executeQuery();
-                while(rs.next()) {
-                    ret.add(new Like(
-                            rs.getString("Id"),
-                            rs.getInt("LikeCount"),
-                            rs.getDate("Updated")
-                            ));
+                try(ResultSet rs = selectStatement.executeQuery()){
+                    while(rs.next()) {
+                        ret.add(new Like(
+                                rs.getString("Id"),
+                                rs.getInt("LikeCount"),
+                                rs.getDate("Updated")
+                                ));
+                    }
+                    rs.close();
                 }
-                rs.close();
             }finally {
                 conn.close();
             }
@@ -111,7 +113,7 @@ public class LikeDAO {
                         System.out.println("UPDATE: before update call.");
                         if(stmt.executeUpdate() == 0){
                             try (PreparedStatement stmtIns = conn.prepareStatement(
-                                "INSERT INTO LikeItem(Id, LikeCount, Updated) VALUES(?,?,?)");){
+                                "INSERT INTO LikeItem(Id, LikeCount, Updated) VALUES(?,?,?)")){
                                 stmtIns.setString(1, id);
                                 stmtIns.setInt(2, 1);
                                 stmtIns.setDate(3, new java.sql.Date(new java.util.Date().getTime())); 
