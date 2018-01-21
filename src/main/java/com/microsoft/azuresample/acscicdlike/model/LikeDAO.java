@@ -105,18 +105,18 @@ public class LikeDAO {
                 try {
                     Connection conn = PostgreSqlHelper.GetConnection();
                     try (PreparedStatement stmt = conn.prepareStatement(
-                            "UPDATE LikeItem SET LikeCount=LikeCount+1, Updated=? WHERE id=?"))
-                    {
+                            "UPDATE LikeItem SET LikeCount=LikeCount+1, Updated=? WHERE id=?")){
                         stmt.setString(2, id);
                         stmt.setDate(1, new java.sql.Date(new java.util.Date().getTime()));
                         System.out.println("UPDATE: before update call.");
                         if(stmt.executeUpdate() == 0){
-                            PreparedStatement stmtIns = conn.prepareStatement(
-                                "INSERT INTO LikeItem(Id, LikeCount, Updated) VALUES(?,?,?)");
+                            try (PreparedStatement stmtIns = conn.prepareStatement(
+                                "INSERT INTO LikeItem(Id, LikeCount, Updated) VALUES(?,?,?)");){
                                 stmtIns.setString(1, id);
                                 stmtIns.setInt(2, 1);
                                 stmtIns.setDate(3, new java.sql.Date(new java.util.Date().getTime())); 
                                 stmtIns.executeUpdate();                                   
+                            }
                         }
                     }finally {
                         conn.close();
