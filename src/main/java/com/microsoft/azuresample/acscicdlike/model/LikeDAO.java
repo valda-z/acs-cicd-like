@@ -77,16 +77,21 @@ public class LikeDAO {
         return ret;
     }
 
-    public List<Like> queryAll(){
-        List<Like> ret = new ArrayList<Like>();
+    public Like query2(String id){
+        Like ret = new Like(
+            id,
+            0,
+            null
+            );
         try {
             Connection conn = PostgreSqlHelper.GetConnection();
             try (PreparedStatement selectStatement = conn.prepareStatement(
-                    "SELECT Id, LikeCount, Updated FROM LikeItem"))
+                    "SELECT Id, LikeCount, Updated FROM LikeItem WHERE id=?"))
             {
+                selectStatement.setString(1, id);
                 try(ResultSet rs = selectStatement.executeQuery()){
-                    while(rs.next()) {
-                        ret.add(new Like(
+                    if(rs.next()) {
+                        ret = (new Like(
                                 rs.getString("Id"),
                                 rs.getInt("LikeCount"),
                                 rs.getDate("Updated")
