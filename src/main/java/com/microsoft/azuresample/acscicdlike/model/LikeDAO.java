@@ -76,6 +76,31 @@ public class LikeDAO {
         return ret;
     }
 
+    public List<Like> queryAll(){
+        List<Like> ret = new ArrayList<Like>();
+        try {
+            Connection conn = PostgreSqlHelper.GetConnection();
+            try (PreparedStatement selectStatement = conn.prepareStatement(
+                    "SELECT Id, LikeCount, Updated FROM LikeItem"))
+            {
+                ResultSet rs = selectStatement.executeQuery();
+                while(rs.next()) {
+                    ret.add(new Like(
+                            rs.getString("Id"),
+                            rs.getInt("LikeCount"),
+                            rs.getDate("Updated")
+                            ));
+                }
+                rs.close();
+            }finally {
+                conn.close();
+            }
+        } catch (SQLException e) {
+            LOG.error("ERROR: cannot connect to PostgreSQL Server.");
+        }
+        return ret;
+    }
+
     public String addLike(String id){
                 try {
                     Connection conn = PostgreSqlHelper.GetConnection();
