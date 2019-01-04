@@ -1,0 +1,89 @@
+
+    //Lets define a unique label for this build.
+    def label = "buildpod.${env.JOB_NAME}.${env.BUILD_NUMBER}".replace('-', '_').replace('/', '_')
+
+    //Lets create a new pod template with jnlp and maven containers, that uses that label.
+    def myimagename = 'acscicdlike'
+    podTemplate(label: label, containers: [
+            containerTemplate(name: 'docker', image: 'docker', ttyEnabled: true, privileged: true, command: 'cat'),     
+            containerTemplate(name: 'maven', image: 'maven', ttyEnabled: true, command: 'cat'),     
+            containerTemplate(name: 'helm', image: 'lachlanevenson/k8s-helm:v2.8.2', ttyEnabled: true, command: 'cat'),
+            containerTemplate(name: 'kubectl', image: 'lachlanevenson/k8s-kubectl:v1.8.1', ttyEnabled: true, command: 'cat'),
+            containerTemplate(name: 'jnlp', image: 'jenkinsci/jnlp-slave:alpine', command: '/usr/local/bin/jenkins-slave', args: '-url http://myjenkins-jenkins:8080 ${computer.jnlpmac} ${computer.name}', ttyEnabled: false)],           
+            volumes: [
+                hostPathVolume(mountPath: "/var/run/docker.sock", hostPath: "/var/run/docker.sock")
+                ]) {
+
+        //Lets use pod template (refernce by label)
+        node(label){
+            withCredentials([[$class: 'UsernamePasswordMultiBinding', credentialsId: params.acr,
+                    usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD']]){
+
+                def built_img = ''
+    
+                stage('Checkout git repo') {
+                    git url: params.giturl, branch: params.gitbranch            
+                }
+                stage('Maven build') {
+                    //Run shell commands in the 'maven' container...            
+                    container(name: 'maven') {
+                      sh 'mvn clean package'
+                    }
+                }
+                container(name: 'maven') {
+                    stage('SonarQube analysis') {
+                        sh 'mvn -Dsonar.host.url=' + params.sonarurl +' -Dsonar.login=' + params.sonarkey + ' org.sonarsource.scanner.maven:sonar-maven-plugin:3.2:sonar'
+                    }
+                    stage("Quality Gate"){
+                        def props = readProperties file: 'target/sonar/report-task.txt'
+                        echo "properties=${props}"
+                        def sonarServerUrl=props['serverUrl']
+                        def ceTaskUrl= props['ceTaskUrl']
+                        def ceTask
+                        timeout(time: 10, unit: 'MINUTES') {
+                            waitUntil {
+                                def response = httpRequest ceTaskUrl
+                                ceTask = readJSON text: response.content
+                                echo ceTask.toString()
+                                return "SUCCESS".equals(ceTask["task"]["status"])
+                            }
+                        }
+                        def response2 = httpRequest url : sonarServerUrl + "/api/qualitygates/project_status?analysisId=" + ceTask["task"]["analysisId"]
+                        def qualitygate = readJSON text: response2.content
+                        echo qualitygate.toString()
+                        if ("ERROR".equals(qualitygate["projectStatus"]["status"])) {
+                            error "Quality Gate failure"
+                        }
+                    }
+                }
+                stage('Build docker image') {
+                    dir('target'){
+                        container(name: 'docker') {
+                          sh "docker login -p "+env.PASSWORD+" -u "+env.USERNAME+" " + params.acr
+                          sh "docker build -t "+params.acr+"/"+myimagename+":${env.BUILD_NUMBER} ."
+                          sh "docker tag "+params.acr+"/"+myimagename+":${env.BUILD_NUMBER} "+params.acr+"/"+myimagename+":latest"
+                          sh "docker push "+params.acr+"/"+myimagename+":latest"
+                          sh "docker push "+params.acr+"/"+myimagename+":${env.BUILD_NUMBER}"
+                        }
+                    }
+                }
+                stage('Deploy docker image') {
+                    container(name: 'kubectl') {
+                        sh "kubectl get nodes"
+                    }
+                    dir('target'){
+                        container(name: 'helm') {
+                            def overrides = "imagePullSecrets='"+params.acr+"',image.repository='"+params.acr+"/"+myimagename+"',image.tag=${env.BUILD_NUMBER},track=stable,branchName='"+params.gitbranch+"',branchSubdomain=''"
+                            def releaseName = params.releasename
+                            def chart_dir = myimagename
+                            
+                            sh "helm init"
+                            sh "helm version"
+                            sh "helm lint ${chart_dir}"
+                            sh "helm upgrade --install --wait ${releaseName} ${chart_dir} --set ${overrides} --namespace='default'"
+                        }
+                    }
+                }
+            }
+        }
+    }
